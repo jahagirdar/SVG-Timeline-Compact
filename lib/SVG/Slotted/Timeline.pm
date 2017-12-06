@@ -1,4 +1,7 @@
 package SVG::Slotted::Timeline;
+
+# ABSTRACT: A Moose based SVG Timeline drawing class.
+
 use Moose;
 use SVG::Slotted::Event;
 use SVG;
@@ -7,18 +10,107 @@ use Data::Printer;
 use v5.10;
 use namespace::clean;
 
+ 
+=head1 SYNOPSIS
+
+ use SVG::Slotted::Timeline;
+ use DateTime::Format::Natural;
+
+ my $svg=SVG::Slotted::Timeline->new();
+
+ my $parser = DateTime::Format::Natural->new;
+ my $start=$parser->parse_datetime("12pm");
+ my $end=$parser->parse_datetime("1pm");
+
+ $svg->add_event(
+		start=>$start,
+		end=>$end,
+		name=>"Event 1",
+		tooltip=>"First Event of the example",
+		color=>"#ff00ff"
+);
+
+ $start=$parser->parse_datetime("12:45pm");
+ $end=$parser->parse_datetime("1:20pm");
+
+ $svg->add_event(
+		start=>$start,
+		end=>$end,
+		name=>"Event 2",
+		tooltip=>"Second Event of the example",
+		color=>"#ff000f"
+);
+
+ $start=$parser->parse_datetime("3:00pm");
+ $end=$parser->parse_datetime("5:20pm");
+
+ $svg->add_event(
+		start=>$start,
+		end=>$end,
+		name=>"Event 3",
+		tooltip=>"Third Event of the example",
+		color=>"#fff00f"
+);
+
+ open my $fh,">","test.svg" or die "unable to open test.svg for writing";
+ print $fh $svg->to_svg;
+
+=head1 DESCRIPTION
+
+This module originated because L<SVG::Timeline> did not meet my requirements.
+
+The major difference with L<SVG::Timeline> are as follows
+
+=for :list
+* Start and End are actual L<DateTime> Objects.
+* Auto-calculation of timescale ( min, hours, days, months, years ) based on the events and grid size.
+* Auto Layout to fit multiple events on same row.
+* Tooltips.
+
+=cut
+
+
 has _events =>(is=>'ro',isa =>'ArrayRef[SVG::Slotted::Event]',traits=>['Array'],handles=>{ev_push=>'push',ev_all=>'elements'});
 has _min=>(is=>'rw',isa =>'DateTime');
 has _max=>(is=>'rw',isa =>'DateTime');
 has _resolution=>(is=>'rw',isa=>'Str',default=>"days");
-has min_width=>(is=>'ro',isa=>'Int',default=>50);
+has min_width=>(is=>'ro',isa=>'Int',default=>1);
+has min_height=>(is=>'ro',isa=>'Int',default=>20); # Each Bar is 20 pixels high
 has units=>(is=>'ro',isa=>'Int',default=>800);
 1;
+
+=head1
+
+=method new
+Creates a new SVG::Slotted::Timeline Object.
+
+Takes the following parameters:
+
+=for :list
+= min_width: Default 1, If the event duration is less then min_width then the resultant bar in the graph is made equal to min_width e.g. if start==end then instead of drawing an event with width 0, an event 1 px width is drawn.
+= min_height: Default 20, The height of the bar, This assumes that our text is 12 px high.
+= units: Default 800, The width of the drawing area in px. 
+
+=method add_event
+Takes a hash corresponding to L<SVG::Slotted::Event> and adds it to the event list.
+
+The hash fields are:
+
+=for :list
+= id: Optional, Event ID.
+= start: Required, DateTime Object representing the Start Time.
+= end: Required, DateTime Object representing the End Time.
+= name: Required, Event Name.
+= tooltip: Optional, Event Tooltip.
+= color: Optional, The RGB value for filling the rectangle representing the event.
+
+=cut
+
 
 sub add_event {
 	my ($self,%hsh)=@_;
 	if (not defined $self->_min or DateTime->compare($self->_min,$hsh{start})>0 ) {$self->_min($hsh{start});}
-	if (not defined $self->_max or DateTime->compare($self->_min,$hsh{start})<0 ) {$self->_max($hsh{start});}
+	if (not defined $self->_max or DateTime->compare($self->_max,$hsh{end})<0 ) {$self->_max($hsh{end});}
 	$hsh{min_width}=$self->min_width;
 	my $ev=SVG::Slotted::Event->new( %hsh);
 	$self->ev_push($ev);
@@ -67,24 +159,31 @@ sub to_ds {
 	}
 	return {resolution=>$self->_resolution,start=>$self->_min->format_cldr($fmt),end=>$self->_max->format_cldr($fmt),maxX=>$maxX,maxY=>$y0,ds=>\@ds}
 }
+
+=method to_svg
+Performs an autolayout of all the added events and returns the resultant SVG as a string.
+
+=cut
+
 sub to_svg{
 	my $self=shift;
 	my @slot=$self->layout;
-
 	my $svg=SVG->new();
 	my $bbox=$svg->group(id=>"bbox");
 	my $bars=$svg->group(id=>"bars");
         my $def=$svg->defs(id=>"arrow","stroke-linecap"=>"round","stroke-width"=>"1");
         $def->line(x1=>"-8",y1=>"-4",x2=>"1",y2=>"0");
         $def->line(x1=>"1",y1=>"0",x2=>"-8",y2=>"4");
-	my ($y0,$y1,$x0,$maxX)=(0,12,0,0);
+	my ($y0,$y1,$x0,$maxX)=(0,$self->min_height,0,0);
 	foreach my $slot (@slot){
 		foreach my $ev (@{$slot}){
+			p $ev;
 			$x0=$ev->x0;
 			my $width=$ev->width;
 			my $color=$ev->color;
 			my $rect=$bars->rect(x=>$x0."px",y=>$y0."px",width=>$width."px",height=>$y1."px", fill=>$color);
-			$rect->title->cdata($ev->name);
+			$bars->text(x=>$x0+$width/2,y=>($y0-2+$self->min_height),"text-anchor"=>"middle")->cdata($ev->name);
+				$rect->title->cdata($ev->name);
 			$maxX=$x0+$width	if ($maxX<$x0+$width);
 		}
 		$y0+=$y1*1.5;
@@ -95,16 +194,21 @@ sub to_svg{
 	my $border=$bbox->rect(x=>0,"fill-opacity"=>"0.1",y=>0,width=>$maxX."px",height=>$y0."px");
 	my $x=0 ;
         my$dim=$bbox->group(id=>"dim");
-	$dim->line(x1=>0,y1=>($y0+12),x2=>800,y2=>($y0+12));
-	$dim->use("xlink:href"=>"#arrow",x=>0,y=>($y0+12));
-	$dim->use("xlink:href"=>"#arrow",x=>800,y=>($y0+12));
-	$dim->text(x=>$maxX/2,y=>($y0+12),"text-anchor"=>"middle")->cdata("<-------------- ". $self->_resolution. " --------------->");
+	$dim->line(x1=>0,y1=>($y0+$self->min_height),x2=>800,y2=>($y0+$self->min_height));
+	$dim->use("xlink:href"=>"#arrow",x=>0,y=>($y0+$self->min_height));
+	$dim->use("xlink:href"=>"#arrow",x=>800,y=>($y0+$self->min_height));
+	#$dim->text(x=>$maxX/2,y=>($y0+$self->min_height),"text-anchor"=>"middle")->cdata("<-------------- ". $self->_resolution. " --------------->");
         #<use stroke="#000000" xlink:href="#ah" transform="translate(354.4 119.4)rotate(90)"/>
-	$bbox->text(x=>$maxX,y=>12)->cdata("Min:\t".$self->_min->format_cldr("yy/mm/d h:m"));
-	$bbox->text(x=>$maxX,y=>30)->cdata("Max:\t".$self->_max->format_cldr("yy/mm/d h:m"));
-	$bbox->text(x=>$maxX,y=>50)->cdata("Scale:\t10 ".$self->_resolution);
+	$bbox->text(x=>$maxX,y=>$self->min_height)->cdata("Min:\t".$self->_min->format_cldr("yyyy/MM/dd h:m"));
+	$bbox->text(x=>$maxX,y=>2*$self->min_height)->cdata("Max:\t".$self->_max->format_cldr("yyyy/MM/dd h:m"));
+	$bbox->text(x=>$maxX,y=>3*$self->min_height)->cdata("Scale:\t1 ".$self->_resolution);
 	while($x<=$maxX){
+		if($x%100 == 0){
+		$bbox->line(x1=>$x,x2=>$x,y1=>$y0,y2=>0 ,style=>"stroke:#000;stroke-width:1px" );
+		$dim->text(x=>$x,y=>($y0+$self->min_height),"text-anchor"=>"middle")->cdata("$x");
+	}else{
 		$bbox->line(x1=>$x,x2=>$x,y1=>$y0,y2=>0 ,style=>"stroke:#fff;stroke-width:1px" );
+	}
 		$x=$x+10;
 
 	}
