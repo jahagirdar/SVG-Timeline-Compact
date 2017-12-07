@@ -8,10 +8,8 @@ use SVG;
 use DateTime;
 use DateTime::Duration;
 use DateTime::Format::Duration;
-use POSIX qw(ceil);
+use POSIX ;
 
-
-use Data::Printer;
 use v5.10;
 use namespace::clean;
 
@@ -71,6 +69,11 @@ The major difference with L<SVG::Timeline> are as follows
 * Auto-calculation of timescale ( min, hours, days, months, years ) based on the events and grid size.
 * Auto Layout to fit multiple events on same row.
 * Tooltips.
+
+=begin html
+
+		<img src="https://raw.githubusercontent.com/jahagirdar/SVG-Timeline-Compact/master/test.svg?sanitize=true" width ="1000">
+=end html
 
 =cut
 
@@ -239,7 +242,7 @@ sub get_scale{
 	my $hours=$days*24+$duration->in_units('hours');
 	my $minutes=$hours*60+$duration->in_units('minutes');
 	my $scale;
-	p $minutes;
+	#p $minutes;
 	if ($duration->in_units('months')>300){
 		$scale=DateTime::Duration->new(months=>POSIX::ceil($duration->in_units('months')/800));
 	}elsif ($days>300){
