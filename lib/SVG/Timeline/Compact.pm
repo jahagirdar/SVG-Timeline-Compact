@@ -16,10 +16,10 @@ use namespace::clean;
  
 =head1 SYNOPSIS
 
- use SVG::Slotted::Timeline;
+ use SVG::Timeline::Compact;
  use DateTime::Format::Natural;
 
- my $svg=SVG::Slotted::Timeline->new();
+ my $svg=SVG::Timeline::Compact->new();
 
  my $parser = DateTime::Format::Natural->new;
  my $start=$parser->parse_datetime("12pm");
@@ -91,27 +91,37 @@ has units=>(is=>'ro',isa=>'Int',default=>800);
 =head1
 
 =method new
-Creates a new SVG::Slotted::Timeline Object.
+ Creates a new SVG::Timeline::Compact Object.
 
 Takes the following parameters:
 
 =for :list
-= min_width: Default 1, If the event duration is less then min_width then the resultant bar in the graph is made equal to min_width e.g. if start==end then instead of drawing an event with width 0, an event 1 px width is drawn.
-= min_height: Default 20, The height of the bar, This assumes that our text is 12 px high.
-= units: Default 800, The width of the drawing area in px. 
+= min_width:
+ Default 1, If the event duration is less then min_width then the resultant bar in the graph is made equal to min_width e.g. if start==end then instead of drawing an event with width 0, an event 1 px width is drawn.
+= min_height:
+ Default 20, The height of the bar, This assumes that our text is 12 px high.
+= units:
+ Default 800, The width of the drawing area in px. 
 
 =method add_event
-Takes a hash corresponding to L<SVG::Timeline::Compact::Event> and adds it to the event list.
+
+ Takes a hash corresponding to L<SVG::Timeline::Compact::Event> and adds it to the event list.
 
 The hash fields are:
 
 =for :list
-= id: Optional, Event ID.
-= start: Required, DateTime Object representing the Start Time.
-= end: Required, DateTime Object representing the End Time.
-= name: Required, Event Name.
-= tooltip: Optional, Event Tooltip.
-= color: Optional, The RGB value for filling the rectangle representing the event.
+= id:
+ Optional, Event ID.
+= start:
+ Required, DateTime Object representing the Start Time.
+= end:
+ Required, DateTime Object representing the End Time.
+= name:
+ Required, Event Name.
+= tooltip:
+ Optional, Event Tooltip.
+= color:
+ Optional, The RGB value for filling the rectangle representing the event.
 
 =cut
 
@@ -169,7 +179,7 @@ sub to_ds {
 }
 
 =method to_svg
-Performs an autolayout of all the added events and returns the resultant SVG as a string.
+ Performs an autolayout of all the added events and returns the resultant SVG as a string.
 
 =cut
 
