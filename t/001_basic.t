@@ -1,11 +1,11 @@
 use Test::More;
-use SVG::Slotted::Timeline;
+use SVG::Timeline::Compact;
 use DateTime::Format::Natural;
 
 use strict;
 use warnings;
 use diagnostics;
-my $svg=SVG::Slotted::Timeline->new(
+my $svg=SVG::Timeline::Compact->new(
 );
 my $parser = DateTime::Format::Natural->new;
 my $start=$parser->parse_datetime("12pm");
