@@ -73,6 +73,7 @@ The major difference with L<SVG::Timeline> are as follows
 =begin html
 
 		<img src="https://raw.githubusercontent.com/jahagirdar/SVG-Timeline-Compact/master/test.svg?sanitize=true" width ="1000">
+
 =end html
 
 =cut
